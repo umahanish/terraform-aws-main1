@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-2"
+  region = "eu-west-2"
 #  access_key = "AKIAVDHCAJY2Z2NDAMS2"
 #  secret_key = "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"
 shared_credentials_file = "c:/Users/CognexLeno/.aws/credentails"
@@ -99,6 +99,15 @@ resource "aws_security_group" "webserver" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Jenkins 8080 from anywhere"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -111,14 +120,15 @@ resource "aws_security_group" "webserver" {
   }
 }
 
-  resource "tls_private_key" "dev_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
+#  resource "tls_private_key" "dev_key" {
+#  algorithm = "RSA"
+#  rsa_bits  = 4096
+#}
 
-resource "aws_key_pair" "demo_key" {
-  key_name   = var.demo_key_name
-  public_key = tls_private_key.dev_key.public_key_openssh
+#resource "aws_key_pair" "demo_key" {
+  #key_name   = var.demo_key_name
+ # key_name   =  studyit-keypair
+ # public_key = tls_private_key.dev_key.public_key_openssh
 
  /* provisioner "local-exec" {
     command = <<-EOT
@@ -127,16 +137,17 @@ resource "aws_key_pair" "demo_key" {
     EOT
   }*/
 
-}
-resource "local_file" "demo_key" {
-    content  = tls_private_key.dev_key.private_key_pem
-    filename = "demo_key"
-}
+#}
+#resource "local_file" "demo_key" {
+#    content  = tls_private_key.dev_key.private_key_pem
+#    filename = "demo_key"
+#}
 
 resource "aws_instance" "web" {
   ami                    = var.amis[var.region]
   instance_type          = var.instance_type
   key_name               = var.demo_key_name
+  #key_name               = "studyit-keypair"
   subnet_id              = aws_subnet.subnet1.id
   vpc_security_group_ids = [aws_security_group.webserver.id]
   associate_public_ip_address = true
@@ -144,13 +155,20 @@ resource "aws_instance" "web" {
   user_data = <<EOF
   #!/bin/bash
   sudo yum update –y
-  sudo yum install -y httpd
-  sudo service httpd start
-  sudo chkconfig httpd on
-  sudo groupadd www
-  sudo usermod -a -G www ec2-user
-  sudo chown ec2-user /var/www/html/ -R
-  sudo echo "Auto-Scaling of webserver" > /var/www/html/index.html
+  #sudo yum install -y httpd
+  #sudo service httpd start
+  #sudo chkconfig httpd on
+  #sudo groupadd www
+  #sudo usermod -a -G www ec2-user
+  #sudo chown ec2-user /var/www/html/ -R
+  #sudo echo "Auto-Scaling of webserver" > /var/www/html/index.html
+  sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+  sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+  sudo yum upgrade
+  sudo amazon-linux-extras install java-openjdk11 -y
+  sudo yum install jenkins -y
+  sudo systemctl enable jenkins
+  sudo systemctl start jenkins
   EOF
   tags = {
     Name = "Cloudtraining"
